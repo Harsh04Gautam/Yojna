@@ -31,5 +31,5 @@ def superuser_token_headers(client: TestClient):
 
 
 @pytest.fixture
-def normal_user_token_headers(db: Session, client: TestClient):
+def normal_user_token_headers(session: Session, client: TestClient):
     return authentication_token_from_email(session=session, client=client, email=settings.EMAIL_TEST_USER)

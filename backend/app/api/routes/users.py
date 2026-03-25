@@ -1,3 +1,4 @@
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 from sqlmodel import select, func, col
@@ -6,7 +7,7 @@ from app.models import User, UsersPublic, UserPublic, UserCreate
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core.config import settings
 from app import crud
-from app.utils import generate_new_account_email
+from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -43,6 +44,9 @@ def create_user(session: SessionDep, user_in: UserCreate):
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
             email_to=user_in.email, username=user_in.email, password=user_in.password)
+        send_email(email_to=user_in.email, subject=email_data.subject,
+                   html_content=email_data.html_content)
+    return user
 
 
 @router.get("/me", response_model=UserPublic)
@@ -51,3 +55,24 @@ def read_user_me(current_user: CurrentUser):
     Get current user.
     """
     return current_user
+
+
+@router.get("/{user_id}", response_model=UserPublic)
+def read_user_by_id(
+        session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+):
+    """
+    Get a specific user by id.
+    """
+    user = session.get(User, user_id)
+    if user == current_user:
+        return user
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges"
+        )
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
