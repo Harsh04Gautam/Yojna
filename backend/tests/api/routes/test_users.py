@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.models import UserCreate
 from app import crud
 from tests.utils.utils import random_email, random_lower_string
+from tests.utils.user import create_random_user
 
 
 def test_get_users_superuser_me(client: TestClient, superuser_token_headers: dict[str, str]) -> None:
@@ -101,3 +102,66 @@ def test_get_existing_user_current_user(session: Session, client: TestClient):
     existing_user = crud.get_user_by_email(session=session, email=username)
     assert existing_user
     assert existing_user.email == api_user["email"]
+
+
+def test_get_existing_user_permissions_error(session: Session, client: TestClient, normal_user_token_headers: dict[str, str]):
+    user = create_random_user(session)
+    r = client.get(f"{settings.API_V1_STR}/users/{user.id}",
+                   headers=normal_user_token_headers)
+    assert r.status_code == 403
+    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+
+
+def test_get_non_existing_user_permissions_error(client: TestClient, normal_user_token_headers: dict[str, str]):
+    user_id = uuid.uuid4()
+    r = client.get(f"{settings.API_V1_STR}/users/{user_id}",
+                   headers=normal_user_token_headers)
+    assert r.status_code == 403
+    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+
+
+def test_create_user_existing_username(session: Session, client: TestClient, superuser_token_headers: dict[str, str]):
+    username = random_email()
+    password = random_lower_string()
+    user_in = UserCreate(email=username, password=password)
+    crud.create_user(session=session, user_create=user_in)
+    data = {"email": username, "password": password}
+    r = client.post(
+        f"{settings.API_V1_STR}/users/",
+        headers=superuser_token_headers,
+        json=data
+    )
+    created_user = r.json()
+    assert r.status_code == 400
+    assert "_id" not in created_user
+
+
+def test_create_user_by_normal_user(client: TestClient, normal_user_token_headers: dict[str, str]):
+    username = random_email()
+    password = random_lower_string()
+    data = {"email": username, "password": password}
+    r = client.post(f"{settings.API_V1_STR}/users/",
+                    headers=normal_user_token_headers,
+                    json=data)
+    assert r.status_code == 403
+
+
+def test_retrieve_users(session: Session, client: TestClient, superuser_token_headers: dict[str, str]):
+    username = random_email()
+    password = random_lower_string()
+    user_in = UserCreate(email=username, password=password)
+    crud.create_user(session=session, user_create=user_in)
+
+    username2 = random_email()
+    password2 = random_lower_string()
+    user_in2 = UserCreate(email=username2, password=password2)
+    crud.create_user(session=session, user_create=user_in2)
+
+    r = client.get(f"{settings.API_V1_STR}/users/",
+                   headers=superuser_token_headers)
+    all_users = r.json()
+
+    assert len(all_users["data"]) > 1
+    assert "count" in all_users
+    for item in all_users["data"]:
+        assert "email" in item

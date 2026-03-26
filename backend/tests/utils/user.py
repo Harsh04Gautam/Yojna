@@ -5,7 +5,7 @@ from pydantic import EmailStr
 from app import crud
 from app.models import UserCreate, UserUpdate
 from app.core.config import settings
-from tests.utils.utils import random_lower_string
+from tests.utils.utils import random_lower_string, random_email
 
 
 def user_authentication_headers(client: TestClient, email: EmailStr, password: str):
@@ -31,3 +31,11 @@ def authentication_token_from_email(session: Session, client: TestClient, email:
             session=session, db_user=user, user_in=user_update)
 
     return user_authentication_headers(client=client, email=email, password=password)
+
+
+def create_random_user(session: Session):
+    email = random_email()
+    password = random_lower_string()
+    user_in = UserCreate(email=email, password=password)
+    user = crud.create_user(session=session, user_create=user_in)
+    return user

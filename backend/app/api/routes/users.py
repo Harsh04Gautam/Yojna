@@ -22,7 +22,7 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100):
     Retrieve users.
     """
     count_statement = select(func.count()).select_from(User)
-    count = session.exec(count_statement).scalar()
+    count = session.exec(count_statement).one()
 
     statement = select(User).order_by(
         col(User.created_at).desc()).offset(skip).limit(limit)
