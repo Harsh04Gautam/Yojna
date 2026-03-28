@@ -41,6 +41,16 @@ class UsersPublic(SQLModel):
     count: int
 
 
+class UserUpdateMe(SQLModel):
+    full_name: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
+
+
+class UpdatePassword(SQLModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
@@ -48,3 +58,7 @@ class Token(SQLModel):
 
 class TokenPayload(SQLModel):
     sub: str | None = None
+
+
+class Message(SQLModel):
+    message: str

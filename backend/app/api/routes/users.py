@@ -3,8 +3,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 from sqlmodel import select, func, col
 
-from app.models import User, UsersPublic, UserPublic, UserCreate
+from app.models import User, UsersPublic, UserPublic, UserCreate, UserUpdateMe, UpdatePassword, Message
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.core.security import verify_password, get_password_hash
 from app.core.config import settings
 from app import crud
 from app.utils import generate_new_account_email, send_email
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/users", tags=["users"])
     dependencies=[Depends(get_current_active_superuser)],
     response_model=UsersPublic,
 )
-def read_users(session: SessionDep, skip: int = 0, limit: int = 100):
+def read_users(*, session: SessionDep, skip: int = 0, limit: int = 100):
     """
     Retrieve users.
     """
@@ -32,7 +33,7 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100):
 
 
 @router.post("/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic)
-def create_user(session: SessionDep, user_in: UserCreate):
+def create_user(*, session: SessionDep, user_in: UserCreate):
     """
     Create new user.
     """
@@ -59,7 +60,7 @@ def read_user_me(current_user: CurrentUser):
 
 @router.get("/{user_id}", response_model=UserPublic)
 def read_user_by_id(
-        session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+        *, session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
 ):
     """
     Get a specific user by id.
@@ -76,3 +77,45 @@ def read_user_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+
+@router.patch("/me", response_model=UserPublic)
+def update_user_me(*, session: SessionDep, user_in: UserUpdateMe, current_user: CurrentUser):
+    """
+    Update own user.
+    """
+
+    if user_in.email:
+        existing_user = crud.get_user_by_email(
+            session=session, email=user_in.email)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="User with this email already exists"
+            )
+    user_data = user_in.model_dump(exclude_unset=True)
+    current_user.sqlmodel_update(user_data)
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
+
+
+@router.patch("/me/password", response_model=Message)
+def update_password_me(*, session: SessionDep, body: UpdatePassword, current_user: CurrentUser):
+    """
+    Update own password.
+    """
+    verified, _ = verify_password(
+        body.current_password, current_user.hashed_password)
+    if not verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect password")
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="New password cannot be the same as the current one"
+        )
+    hashed_password = get_password_hash(body.new_password)
+    current_user.hashed_password = hashed_password
+    session.add(current_user)
+    session.commit()
+    return Message(message="Password updated successfully")
