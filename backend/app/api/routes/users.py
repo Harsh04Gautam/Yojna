@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 from sqlmodel import select, func, col
 
-from app.models import User, UsersPublic, UserPublic, UserCreate, UserUpdateMe, UpdatePassword, Message
+from app.models import User, UsersPublic, UserPublic, UserCreate, UserUpdateMe, UpdatePassword, Message, UserRegister
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core.security import verify_password, get_password_hash
 from app.core.config import settings
@@ -119,3 +119,20 @@ def update_password_me(*, session: SessionDep, body: UpdatePassword, current_use
     session.add(current_user)
     session.commit()
     return Message(message="Password updated successfully")
+
+
+@router.post("/signup", response_model=UserPublic)
+def register_user(session: SessionDep, user_in: UserRegister):
+    """
+    Create new user without the need to be logged in.
+    """
+    pass
+    user = crud.get_user_by_email(session=session, email=user_in.email)
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The user with this email already exists in the system"
+        )
+    user_create = UserCreate.model_validate(user_in)
+    user = crud.create_user(session=session, user_create=user_create)
+    return user

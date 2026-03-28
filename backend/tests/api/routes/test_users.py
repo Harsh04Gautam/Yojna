@@ -226,3 +226,65 @@ def test_update_password_me(session: Session, client: TestClient, superuser_toke
     verified, _ = verify_password(
         settings.FIRST_SUPERUSER_PASSWORD, user_db.hashed_password)
     assert verified
+
+
+def test_update_password_me_incorrect_password(client: TestClient, superuser_token_headers: dict[str, str]):
+    new_password = random_lower_string()
+    data = {"current_password": new_password, "new_password": new_password}
+    r = client.patch(
+        f"{settings.API_V1_STR}/users/me/password",
+        headers=superuser_token_headers,
+        json=data
+    )
+    assert r.status_code == 400
+    updated_user = r.json()
+    assert updated_user["detail"] == "Incorrect password"
+
+
+def test_update_user_me_email_exists(session: Session, client: TestClient, normal_user_token_headers: dict[str, str]):
+    username = random_email()
+    password = random_lower_string()
+    user_in = UserCreate(email=username, password=password)
+    user = crud.create_user(session=session, user_create=user_in)
+
+    data = {"email": user.email}
+    r = client.patch(
+        f"{settings.API_V1_STR}/users/me",
+        headers=normal_user_token_headers,
+        json=data
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"] == "User with this email already exists"
+
+
+def test_update_password_me_same_password_error(client: TestClient, superuser_token_headers: dict[str, str]):
+    data = {
+        "current_password": settings.FIRST_SUPERUSER_PASSWORD,
+        "new_password": settings.FIRST_SUPERUSER_PASSWORD
+    }
+    r = client.patch(f"{settings.API_V1_STR}/users/me/password",
+                     headers=superuser_token_headers, json=data)
+    assert r.status_code == 400
+    updated_user = r.json()
+    assert (updated_user["detail"] ==
+            "New password cannot be the same as the current one")
+
+
+def test_register_user(session: Session, client: TestClient):
+    username = random_email()
+    password = random_lower_string()
+    full_name = random_lower_string()
+    data = {"email": username, "password": password, "full_name": full_name}
+    r = client.post(f"{settings.API_V1_STR}/users/signup", json=data)
+    assert r.status_code == 200
+    created_user = r.json()
+    assert created_user["email"] == username
+    assert created_user["full_name"] == full_name
+
+    user_query = select(User).where(User.email == username)
+    user_db = session.exec(user_query).one()
+    assert user_db
+    assert user_db.email == username
+    assert user_db.full_name == full_name
+    verified, _ = verify_password(password, user_db.hashed_password)
+    assert verified
