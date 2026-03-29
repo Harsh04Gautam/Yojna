@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: str | None = None
     FRONTEND_HOST: str = "http://localhost:5173"
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
 
     @model_validator(mode="after")
     def _set_default_emails_from(self):
