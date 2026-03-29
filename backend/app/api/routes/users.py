@@ -1,9 +1,9 @@
 import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
-from sqlmodel import select, func, col
+from sqlmodel import select, func, col, delete
 
-from app.models import User, UsersPublic, UserPublic, UserCreate, UserUpdateMe, UpdatePassword, Message, UserRegister
+from app.models import User, UsersPublic, UserPublic, UserCreate, UserUpdateMe, UpdatePassword, Message, UserRegister, UserUpdate
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core.security import verify_password, get_password_hash
 from app.core.config import settings
@@ -56,27 +56,6 @@ def read_user_me(current_user: CurrentUser):
     Get current user.
     """
     return current_user
-
-
-@router.get("/{user_id}", response_model=UserPublic)
-def read_user_by_id(
-        *, session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
-):
-    """
-    Get a specific user by id.
-    """
-    user = session.get(User, user_id)
-    if user == current_user:
-        return user
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges"
-        )
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return user
 
 
 @router.patch("/me", response_model=UserPublic)
@@ -136,3 +115,74 @@ def register_user(session: SessionDep, user_in: UserRegister):
     user_create = UserCreate.model_validate(user_in)
     user = crud.create_user(session=session, user_create=user_create)
     return user
+
+
+@router.get("/{user_id}", response_model=UserPublic)
+def read_user_by_id(
+        *, session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+):
+    """
+    Get a specific user by id.
+    """
+    user = session.get(User, user_id)
+    if user == current_user:
+        return user
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges"
+        )
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+@router.patch("/{user_id}", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic)
+def update_user(*, session: SessionDep, user_id: uuid.UUID, user_in: UserUpdate):
+    """
+    Update a user.
+    """
+    db_user = session.get(User, user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=404, detail="The user with this id dose not exist in the system")
+    if user_in.email:
+        existing_user = crud.get_user_by_email(
+            session=session, email=user_in.email)
+        if existing_user and existing_user.id != user_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="User with this email already exists")
+    db_user = crud.update_user(
+        session=session, db_user=db_user, user_in=user_in)
+    return db_user
+
+
+@router.delete("/me", response_model=Message)
+def delete_user_me(session: SessionDep, current_user: CurrentUser):
+    """
+    Delete own user.
+    """
+    if current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Super users are not allowed to delete themselves")
+    session.delete(current_user)
+    session.commit()
+    return Message(message="User deleted successfully")
+
+
+@router.delete("/{user_id}", dependencies=[Depends(get_current_active_superuser)])
+def delete_user(session: SessionDep, current_user: CurrentUser, user_id: uuid.UUID):
+    """
+    Delete a user.
+    """
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user == current_user:
+        raise HTTPException(
+            status_code=403, detail="Super users are not allowed to delete themselves")
+    session.delete(user)
+    session.commit()
+    return Message(message="User deleted successfully")
