@@ -1,6 +1,7 @@
+import uuid
 from sqlmodel import Session, select
 from pydantic import EmailStr
-from app.models import UserCreate, User, UserUpdate
+from app.models import UserCreate, User, UserUpdate, EventCreate, Event
 from app.core.security import get_password_hash, verify_password
 
 
@@ -54,3 +55,15 @@ def authenticate(session: Session, email: EmailStr, password: str) -> User | Non
         session.commit()
         session.refresh(db_user)
     return db_user
+
+
+def create_event(*, session: Session, event_create: EventCreate, user_id: uuid.UUID):
+    db_obj = Event.model_validate(event_create, update={"user_id": user_id})
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def get_events(*, session: Session, user_id: uuid.UUID):
+    return session.exec(select(Event).where(Event.user_id == user_id)).all()
