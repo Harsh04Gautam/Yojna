@@ -100,7 +100,8 @@ class Event(EventBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE")
     user: User | None = Relationship(back_populates="events")
-    entries: list["Entry"] = Relationship(back_populates="event")
+    entries: list["Entry"] = Relationship(
+        back_populates="event", cascade_delete=True)
 
 
 class EventPublic(EventBase):
@@ -126,5 +127,5 @@ class Entry(EntryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=get_datetime_utc)
     event_id: uuid.UUID = Field(
-        foreign_key="event.id", nullable=False)
+        foreign_key="event.id", nullable=False, ondelete="CASCADE")
     event: Event | None = Relationship(back_populates="entries")

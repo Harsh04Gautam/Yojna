@@ -36,5 +36,6 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
                     headers=normal_user_token_headers, json=data)
     event_id = r.json()["id"]
     r = client.post(f"{settings.API_V1_STR}/entries/{event_id}",
-                    headers=normal_user_token_headers)
+                    headers=normal_user_token_headers, json=data["blueprint"])
     assert r.status_code == 200
+    assert r.json()["phases"][0]["name"] == "Discovery"
