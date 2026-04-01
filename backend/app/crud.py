@@ -74,3 +74,7 @@ def get_events(*, session: Session, user_id: uuid.UUID) -> EventsPublic | None:
 
 def get_event(*, session: Session, event_id: uuid.UUID) -> Event | None:
     return session.get(Event, event_id)
+
+
+def create_entry(*, session: Session):
+    pass
