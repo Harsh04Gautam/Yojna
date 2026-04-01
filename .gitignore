@@ -8,6 +8,7 @@ wheels/
 .env
 !.env.example
 .pytest_cache
+.flake8
 
 # Virtual environments
 .venv
