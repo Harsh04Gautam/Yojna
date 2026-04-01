@@ -109,6 +109,11 @@ class EventPublic(EventBase):
     user_id: uuid.UUID
 
 
+class EventsPublic(SQLModel):
+    data: list[EventPublic]
+    count: int
+
+
 class EntryBase(SQLModel):
     data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 

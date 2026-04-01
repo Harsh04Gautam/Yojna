@@ -1,7 +1,7 @@
 import uuid
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from pydantic import EmailStr
-from app.models import UserCreate, User, UserUpdate, EventCreate, Event
+from app.models import UserCreate, User, UserUpdate, EventCreate, Event, EventsPublic
 from app.core.security import get_password_hash, verify_password
 
 
@@ -65,5 +65,12 @@ def create_event(*, session: Session, event_create: EventCreate, user_id: uuid.U
     return db_obj
 
 
-def get_events(*, session: Session, user_id: uuid.UUID):
-    return session.exec(select(Event).where(Event.user_id == user_id)).all()
+def get_events(*, session: Session, user_id: uuid.UUID) -> EventsPublic | None:
+    count = session.exec(select(func.count()).select_from(
+        Event).where(Event.user_id == user_id)).one()
+    events = session.exec(select(Event).where(Event.user_id == user_id)).all()
+    return EventsPublic(data=events, count=count)
+
+
+def get_event(*, session: Session, event_id: uuid.UUID) -> Event | None:
+    return session.get(Event, event_id)
