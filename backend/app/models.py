@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Literal, Optional, List
+from enum import Enum
+from zoneinfo import available_timezones
 
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel, Annotated, Union
 
 
 def get_datetime_utc() -> datetime:
@@ -78,12 +80,73 @@ class NewPassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class BlockType(str, Enum):
+    TEXT = "text"
+    INPUT = "input"
+    CHECKBOX = "checkbox"
+    CODE = "code"
+
+
+class BaseBlock(BaseModel):
+    block_type: BlockType
+    key: str
+    label: str
+    description: Optional[str] = None
+
+
+class TextBlock(BaseBlock):
+    block_type: Literal[BlockType.TEXT] = BlockType.TEXT
+    description: str
+
+
+class InputBlock(BaseBlock):
+    block_type: Literal[BlockType.INPUT] = BlockType.INPUT
+    input_type: Literal["text", "number", "date"] = "number"
+    placeholder: Optional[str] = None
+
+
+class CheckBoxBlock(BaseBlock):
+    block_type: Literal[BlockType.CHECKLIST] = BlockType.CHECKLIST
+
+
+class CodeBlock(BaseBlock):
+    block_type: Literal[BlockType.CODE] = BlockType.CODE
+    inputs: Dict[str, Any]
+    script: str
+    output: Dict[str, Any]
+
+
+Block = Annotated[
+    Union[TextBlock, InputBlock, CheckBoxBlock, CodeBlock],
+    Field(discriminator="block_type")
+]
+
+
+class Phase(BaseModel):
+    slug: str
+    name: str
+    blocks: List[Block]
+
+
+class Blueprint(BaseModel):
+    name: str
+    phases: List[Phase]
+
+
 class EventBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=255)
-    blueprint: Dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSON))
     is_active: bool = True
+
+    blueprint: Blueprint = Field(
+        default_factory=dict, sa_column=Column(JSON), nullable=False)
+
+    is_recurring: bool = Field(default=False)
+    rrule: Optional[str] = Field(default=None, max_length=255)
+
+    start_at: datetime = Field(default_factory=datetime.utcnow)
+    duration_minutes: int = Field(default=30)
+    timezone: str = Field(default="UTC")
 
 
 class EventCreate(EventBase):
