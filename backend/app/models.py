@@ -1,11 +1,13 @@
+from functools import cache
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Literal, Optional, List
+from typing import Any, Dict, Literal, Optional, List, Annotated, Union
 from enum import Enum
 from zoneinfo import available_timezones
 
-from sqlmodel import SQLModel, Field, Relationship, Column, JSON
-from pydantic import EmailStr, BaseModel, Annotated, Union
+from sqlmodel import SQLModel, Field, Relationship, Column
+from pydantic import EmailStr, BaseModel, field_validator
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 def get_datetime_utc() -> datetime:
@@ -106,7 +108,7 @@ class InputBlock(BaseBlock):
 
 
 class CheckBoxBlock(BaseBlock):
-    block_type: Literal[BlockType.CHECKLIST] = BlockType.CHECKLIST
+    block_type: Literal[BlockType.CHECKBOX] = BlockType.CHECKBOX
 
 
 class CodeBlock(BaseBlock):
@@ -133,18 +135,22 @@ class Blueprint(BaseModel):
     phases: List[Phase]
 
 
+@cache
+def get_timezone() -> set[str]:
+    return available_timezones()
+
+
 class EventBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=255)
     is_active: bool = True
 
-    blueprint: Blueprint = Field(
-        default_factory=dict, sa_column=Column(JSON), nullable=False)
+    blueprint: Dict[str, Any] = Field(sa_column=Column(JSONB))
 
     is_recurring: bool = Field(default=False)
     rrule: Optional[str] = Field(default=None, max_length=255)
 
-    start_at: datetime = Field(default_factory=datetime.utcnow)
+    start_at: datetime = Field(default_factory=get_datetime_utc)
     duration_minutes: int = Field(default=30)
     timezone: str = Field(default="UTC")
 
@@ -166,6 +172,24 @@ class Event(EventBase, table=True):
     entries: list["Entry"] = Relationship(
         back_populates="event", cascade_delete=True)
 
+    @field_validator("timezone", mode="after")
+    @classmethod
+    def validate_timezone(cls, v: str):
+        if v not in get_timezone():
+            raise ValueError(f"{v} is not a valid timezone")
+        return v
+
+    @field_validator("blueprint", mode="before")
+    @classmethod
+    def validate_blueprint_schema(cls, v: Any) -> Dict[str, Any]:
+        if isinstance(v, dict):
+            return Blueprint.model_validate(v).model_dump()
+
+        if isinstance(v, Blueprint):
+            return v.model_dump()
+
+        return v
+
 
 class EventPublic(EventBase):
     id: uuid.UUID
@@ -179,7 +203,7 @@ class EventsPublic(SQLModel):
 
 
 class EntryBase(SQLModel):
-    data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB))
 
 
 class EntryCreate(EntryBase):
