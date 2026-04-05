@@ -1,9 +1,12 @@
+from datetime import datetime
 from fastapi.testclient import TestClient
 from app.core.config import settings
 from tests.utils.utils import random_lower_string
 
 
 def test_create_entries(client: TestClient, normal_user_token_headers: dict[str, str]):
+    phase_key = [random_lower_string(), random_lower_string(),
+                 random_lower_string()]
     data = {
         "title": random_lower_string(),
         "description": random_lower_string(),
@@ -15,13 +18,13 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
                 "blocks": [
                     {
                         "block_type": "text",
-                        "key": random_lower_string(),
+                        "key": phase_key[0],
                         "label": random_lower_string(),
                         "description": random_lower_string()
                     },
                     {
                         "block_type": "input",
-                        "key": random_lower_string(),
+                        "key": phase_key[1],
                         "label": random_lower_string(),
                         "description": random_lower_string(),
                         "input_type": "number",
@@ -29,7 +32,7 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
                     },
                     {
                         "block_type": "checkbox",
-                        "key": random_lower_string(),
+                        "key": phase_key[2],
                         "label": random_lower_string(),
                         "description": random_lower_string(),
                     },
@@ -43,30 +46,12 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
     event_id = r.json()["id"]
 
     data = {
-        "slug": random_lower_string(),
-        "name": random_lower_string(),
-        "blocks": [
-            {
-                "block_type": "text",
-                "key": random_lower_string(),
-                "label": random_lower_string(),
-                "description": random_lower_string()
-            },
-            {
-                "block_type": "input",
-                "key": random_lower_string(),
-                "label": random_lower_string(),
-                "description": random_lower_string(),
-                "input_type": "number",
-                "placeholder": random_lower_string()
-            },
-            {
-                "block_type": "checkbox",
-                "key": random_lower_string(),
-                "label": random_lower_string(),
-                "description": random_lower_string(),
-            },
-        ]
+        "data": {
+            phase_key[0]: random_lower_string(),
+            phase_key[1]: 20,
+            phase_key[2]: True,
+        },
+        "due_date": str(datetime.now())
     }
 
     r = client.post(f"{settings.API_V1_STR}/entries/{event_id}",

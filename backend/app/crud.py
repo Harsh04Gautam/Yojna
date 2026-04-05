@@ -1,6 +1,7 @@
 import uuid
 from sqlmodel import Session, select, func
 from pydantic import EmailStr
+from fastapi import HTTPException
 from app.models import UserCreate, User, UserUpdate, EventCreate, Event, EventsPublic, EntryCreate, Entry
 from app.core.security import get_password_hash, verify_password
 
@@ -76,39 +77,34 @@ def get_event(*, session: Session, event_id: uuid.UUID) -> Event | None:
     return session.get(Event, event_id)
 
 
-def create_entry(*, session: Session, entry_create: EntryCreate, event_id: uuid.UUID):
-    db_obj = Entry.model_validate(entry_create, update={"event_id": event_id})
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-    return db_obj
+def create_entry(*, session: Session, entry_create: EntryCreate, event: Event, user_id: uuid.UUID):
+    # db_obj = Entry.model_validate(entry_create, update={"event_id": event_id})
 
-    # blueprint_map = {}
-    # for phase in event.blueprint["phases"]:
-    #     for block in phase["blocks"]:
-    #         blueprint_map[block["key"]] = block
-    #
-    # validated_data = {}
+    phase_map = {}
+    for phase in event.phases:
+        for block in phase["blocks"]:
+            phase_map[block["key"]] = block
 
-    # for key, value in :
-    #     if key not in blueprint_map:
-    #         raise HTTPException(
-    #             status_code=400, detail=f"Unexpected key: {key}")
-    #
-    #     block = blueprint_map[key]
-    #
-    #     # Type Enforcement for Input Blocks
-    #     if block.block_type == "input":
-    #         if block.html_type == "number" and not isinstance(value, (int, float)):
-    #             raise HTTPException(status_code=400, detail=f"{
-    #                                 key} must be a number")
-    #         # Add regex for YYYY-MM-DD
-    #         if block.html_type == "date" and not isinstance(value, str):
-    #             raise HTTPException(status_code=400, detail=f"{
-    #                                 key} must be a valid date string")
-    #
-    #     validated_data[key] = value
-    #
+    validated_data = {}
+
+    for key, value in entry_create.data.items():
+        if key not in phase_map:
+            raise HTTPException(
+                status_code=400, detail=f"Unexpected key: {key}")
+
+        block = phase_map[key]
+
+        if block["block_type"] == "input":
+            if block["input_type"] == "number" and not isinstance(value, (int, float)):
+                raise HTTPException(status_code=400, detail=f"{
+                                    key} must be a number")
+            if block["input_type"] == "date" and not isinstance(value, str):
+                raise HTTPException(status_code=400, detail=f"{
+                                    key} must be a valid date string")
+
+        validated_data[key] = value
+    print(validated_data)
+
     # # 4. Execute Code Blocks (Computed Fields)
     # # Filter for blocks that calculate values based on other inputs
     # code_blocks = [b for b in blueprint_map.values() if b.block_type == "code"]
@@ -121,14 +117,14 @@ def create_entry(*, session: Session, entry_create: EntryCreate, event_id: uuid.
     #     # Execute the Python snippet (RestrictedPython suggested)
     #     computed_result = execute_sandbox(cb.script, input_context)
     #     validated_data[cb.key] = computed_result
-    #
-    # # 5. Persist Entry
-    # new_entry = Entry(
-    #     event_id=payload.event_id,
-    #     user_id=payload.user_id,
-    #     due_date=payload.due_date,
-    #     phase_data=validated_data
-    # )
-    # session.add(new_entry)
-    # session.commit()
-    # return new_entry
+
+    db_obj = Entry(
+        event_id=event.id,
+        user_id=user_id,
+        due_date=entry_create.due_date,
+        data=validated_data
+    )
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj

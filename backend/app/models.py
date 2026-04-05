@@ -202,6 +202,7 @@ class EventsPublic(SQLModel):
 
 class EntryBase(SQLModel):
     data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB))
+    due_date: datetime
 
 
 class EntryCreate(EntryBase):
@@ -213,11 +214,11 @@ class Entry(EntryBase, table=True):
     created_at: datetime = Field(default_factory=get_datetime_utc)
     event_id: uuid.UUID = Field(
         foreign_key="event.id", nullable=False, ondelete="CASCADE", index=True)
-    user_id: int = Field(index=True)
+    user_id: uuid.UUID = Field(index=True)
     event: Event | None = Relationship(back_populates="entries")
 
     due_date: datetime = Field(index=True)
-    phase_data: Dict[str, Any] = Field(sa_column=Column(JSONB))
+    data: Dict[str, Any] = Field(sa_column=Column(JSONB))
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(

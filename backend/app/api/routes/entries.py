@@ -18,5 +18,5 @@ def create_entries(session: SessionDep, current_user: CurrentUser, entry_in: Ent
             status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
 
     entry = crud.create_entry(
-        session=session, entry_create=entry_in, event_id=event_id)
+        session=session, entry_create=entry_in, event=event, user_id=current_user.id)
     return entry
