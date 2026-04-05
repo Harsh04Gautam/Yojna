@@ -82,3 +82,53 @@ def create_entry(*, session: Session, entry_create: EntryCreate, event_id: uuid.
     session.commit()
     session.refresh(db_obj)
     return db_obj
+
+    # blueprint_map = {}
+    # for phase in event.blueprint["phases"]:
+    #     for block in phase["blocks"]:
+    #         blueprint_map[block["key"]] = block
+    #
+    # validated_data = {}
+
+    # for key, value in :
+    #     if key not in blueprint_map:
+    #         raise HTTPException(
+    #             status_code=400, detail=f"Unexpected key: {key}")
+    #
+    #     block = blueprint_map[key]
+    #
+    #     # Type Enforcement for Input Blocks
+    #     if block.block_type == "input":
+    #         if block.html_type == "number" and not isinstance(value, (int, float)):
+    #             raise HTTPException(status_code=400, detail=f"{
+    #                                 key} must be a number")
+    #         # Add regex for YYYY-MM-DD
+    #         if block.html_type == "date" and not isinstance(value, str):
+    #             raise HTTPException(status_code=400, detail=f"{
+    #                                 key} must be a valid date string")
+    #
+    #     validated_data[key] = value
+    #
+    # # 4. Execute Code Blocks (Computed Fields)
+    # # Filter for blocks that calculate values based on other inputs
+    # code_blocks = [b for b in blueprint_map.values() if b.block_type == "code"]
+    #
+    # for cb in code_blocks:
+    #     # Inject current data into the sandbox context
+    #     # result = f(inputs) where inputs are specific keys defined in cb.inputs
+    #     input_context = {k: validated_data.get(k) for k in cb.inputs}
+    #
+    #     # Execute the Python snippet (RestrictedPython suggested)
+    #     computed_result = execute_sandbox(cb.script, input_context)
+    #     validated_data[cb.key] = computed_result
+    #
+    # # 5. Persist Entry
+    # new_entry = Entry(
+    #     event_id=payload.event_id,
+    #     user_id=payload.user_id,
+    #     due_date=payload.due_date,
+    #     phase_data=validated_data
+    # )
+    # session.add(new_entry)
+    # session.commit()
+    # return new_entry

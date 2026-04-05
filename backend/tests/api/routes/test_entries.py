@@ -8,37 +8,34 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
         "title": random_lower_string(),
         "description": random_lower_string(),
         "is_active": True,
-        "blueprint": {
-            "name": random_lower_string(),
-            "phases": [
-                {
-                    "slug": random_lower_string(),
-                    "name": random_lower_string(),
-                    "blocks": [
-                        {
-                            "block_type": "text",
-                            "key": random_lower_string(),
-                            "label": random_lower_string(),
-                            "description": random_lower_string()
-                        },
-                        {
-                            "block_type": "input",
-                            "key": random_lower_string(),
-                            "label": random_lower_string(),
-                            "description": random_lower_string(),
-                            "input_type": "number",
-                            "placeholder": random_lower_string()
-                        },
-                        {
-                            "block_type": "checkbox",
-                            "key": random_lower_string(),
-                            "label": random_lower_string(),
-                            "description": random_lower_string(),
-                        },
-                    ]
-                }
-            ],
-        },
+        "phases": [
+            {
+                "slug": random_lower_string(),
+                "name": random_lower_string(),
+                "blocks": [
+                    {
+                        "block_type": "text",
+                        "key": random_lower_string(),
+                        "label": random_lower_string(),
+                        "description": random_lower_string()
+                    },
+                    {
+                        "block_type": "input",
+                        "key": random_lower_string(),
+                        "label": random_lower_string(),
+                        "description": random_lower_string(),
+                        "input_type": "number",
+                        "placeholder": random_lower_string()
+                    },
+                    {
+                        "block_type": "checkbox",
+                        "key": random_lower_string(),
+                        "label": random_lower_string(),
+                        "description": random_lower_string(),
+                    },
+                ]
+            }
+        ],
     }
 
     r = client.post(f"{settings.API_V1_STR}/events",

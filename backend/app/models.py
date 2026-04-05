@@ -130,9 +130,12 @@ class Phase(BaseModel):
     blocks: List[Block]
 
 
+class PhaseList(BaseModel):
+    phases: List[Phase]
+
+
 class Blueprint(BaseModel):
     name: str
-    phases: List[Phase]
 
 
 @cache
@@ -145,7 +148,7 @@ class EventBase(SQLModel):
     description: str | None = Field(default=None, max_length=255)
     is_active: bool = True
 
-    blueprint: Dict[str, Any] = Field(sa_column=Column(JSONB))
+    phases: List[Dict[str, Any]] = Field(sa_column=Column(JSONB))
 
     is_recurring: bool = Field(default=False)
     rrule: Optional[str] = Field(default=None, max_length=255)
@@ -179,16 +182,11 @@ class Event(EventBase, table=True):
             raise ValueError(f"{v} is not a valid timezone")
         return v
 
-    @field_validator("blueprint", mode="before")
+    @field_validator("phases", mode="before")
     @classmethod
-    def validate_blueprint_schema(cls, v: Any) -> Dict[str, Any]:
-        if isinstance(v, dict):
-            return Blueprint.model_validate(v).model_dump()
-
-        if isinstance(v, Blueprint):
-            return v.model_dump()
-
-        return v
+    def validate_blueprint_schema(cls, v: Any) -> List[Dict[str, Any]]:
+        phase_list = PhaseList(phases=v)
+        return [phase.model_dump() for phase in phase_list.phases]
 
 
 class EventPublic(EventBase):
@@ -214,5 +212,15 @@ class Entry(EntryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=get_datetime_utc)
     event_id: uuid.UUID = Field(
-        foreign_key="event.id", nullable=False, ondelete="CASCADE")
+        foreign_key="event.id", nullable=False, ondelete="CASCADE", index=True)
+    user_id: int = Field(index=True)
     event: Event | None = Relationship(back_populates="entries")
+
+    due_date: datetime = Field(index=True)
+    phase_data: Dict[str, Any] = Field(sa_column=Column(JSONB))
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column_kwargs={"onupdate": get_datetime_utc}
+    )
