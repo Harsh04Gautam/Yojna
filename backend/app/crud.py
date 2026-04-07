@@ -2,7 +2,7 @@ import uuid
 from sqlmodel import Session, select, func
 from pydantic import EmailStr
 from fastapi import HTTPException
-from app.models import UserCreate, User, UserUpdate, EventCreate, Event, EventsPublic, EntryCreate, Entry
+from app.models import UserCreate, User, UserUpdate, EventCreate, Event, EventsPublic, EntryCreate, Entry, EntriesPublic
 from app.core.security import get_password_hash, verify_password
 
 
@@ -78,8 +78,6 @@ def get_event(*, session: Session, event_id: uuid.UUID) -> Event | None:
 
 
 def create_entry(*, session: Session, entry_create: EntryCreate, event: Event, user_id: uuid.UUID):
-    # db_obj = Entry.model_validate(entry_create, update={"event_id": event_id})
-
     phase_map = {}
     for phase in event.phases:
         for block in phase["blocks"]:
@@ -103,20 +101,6 @@ def create_entry(*, session: Session, entry_create: EntryCreate, event: Event, u
                                     key} must be a valid date string")
 
         validated_data[key] = value
-    print(validated_data)
-
-    # # 4. Execute Code Blocks (Computed Fields)
-    # # Filter for blocks that calculate values based on other inputs
-    # code_blocks = [b for b in blueprint_map.values() if b.block_type == "code"]
-    #
-    # for cb in code_blocks:
-    #     # Inject current data into the sandbox context
-    #     # result = f(inputs) where inputs are specific keys defined in cb.inputs
-    #     input_context = {k: validated_data.get(k) for k in cb.inputs}
-    #
-    #     # Execute the Python snippet (RestrictedPython suggested)
-    #     computed_result = execute_sandbox(cb.script, input_context)
-    #     validated_data[cb.key] = computed_result
 
     db_obj = Entry(
         event_id=event.id,
@@ -128,3 +112,11 @@ def create_entry(*, session: Session, entry_create: EntryCreate, event: Event, u
     session.commit()
     session.refresh(db_obj)
     return db_obj
+
+
+def get_entries_by_event(session: Session, event_id: uuid.UUID):
+    count = session.exec(select(func.count()).select_from(
+        Entry).where(Entry.event_id == event_id)).one()
+    entries = session.exec(select(Entry).where(
+        Entry.event_id == event_id)).all()
+    return EntriesPublic(data=entries, count=count)

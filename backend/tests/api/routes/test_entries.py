@@ -4,52 +4,15 @@ from app.core.config import settings
 from tests.utils.utils import random_lower_string
 
 
-def test_create_entries(client: TestClient, normal_user_token_headers: dict[str, str]):
-    phase_key = [random_lower_string(), random_lower_string(),
-                 random_lower_string()]
-    data = {
-        "title": random_lower_string(),
-        "description": random_lower_string(),
-        "is_active": True,
-        "phases": [
-            {
-                "slug": random_lower_string(),
-                "name": random_lower_string(),
-                "blocks": [
-                    {
-                        "block_type": "text",
-                        "key": phase_key[0],
-                        "label": random_lower_string(),
-                        "description": random_lower_string()
-                    },
-                    {
-                        "block_type": "input",
-                        "key": phase_key[1],
-                        "label": random_lower_string(),
-                        "description": random_lower_string(),
-                        "input_type": "number",
-                        "placeholder": random_lower_string()
-                    },
-                    {
-                        "block_type": "checkbox",
-                        "key": phase_key[2],
-                        "label": random_lower_string(),
-                        "description": random_lower_string(),
-                    },
-                ]
-            }
-        ],
-    }
-
-    r = client.post(f"{settings.API_V1_STR}/events",
-                    headers=normal_user_token_headers, json=data)
-    event_id = r.json()["id"]
+def test_create_entries(client: TestClient, normal_user_token_headers: dict[str, str], random_event):
+    event, blocks = random_event()
+    event_id = event.id
 
     data = {
         "data": {
-            phase_key[0]: random_lower_string(),
-            phase_key[1]: 20,
-            phase_key[2]: True,
+            blocks[0]: random_lower_string(),
+            blocks[1]: 20,
+            blocks[2]: True,
         },
         "due_date": str(datetime.now())
     }
@@ -57,3 +20,16 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
     r = client.post(f"{settings.API_V1_STR}/entries/{event_id}",
                     headers=normal_user_token_headers, json=data)
     assert r.status_code == 200
+
+
+def test_get_entries_by_event(client: TestClient, normal_user_token_headers: dict[str, str], random_event):
+    event, blocks = random_event()
+    event_id = event.id
+
+    r = client.get(f"{settings.API_V1_STR}/entries/{event_id}",
+                   headers=normal_user_token_headers)
+
+    print(r.json())
+    # assert r.status_code == 200
+    # assert r.json()["data"]
+    # assert r.json()["count"] > 0

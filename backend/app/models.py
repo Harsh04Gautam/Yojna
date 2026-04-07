@@ -1,7 +1,7 @@
 from functools import cache
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Literal, Optional, List, Annotated, Union
+from typing import Literal, Optional, Annotated, Union, Any
 from enum import Enum
 from zoneinfo import available_timezones
 
@@ -41,6 +41,8 @@ class User(UserBase, table=True):
     hashed_password: str
     created_at: datetime = Field(default_factory=get_datetime_utc)
     events: list["Event"] = Relationship(
+        back_populates="user", cascade_delete=True)
+    entries: list["Entry"] = Relationship(
         back_populates="user", cascade_delete=True)
 
 
@@ -113,9 +115,9 @@ class CheckBoxBlock(BaseBlock):
 
 class CodeBlock(BaseBlock):
     block_type: Literal[BlockType.CODE] = BlockType.CODE
-    inputs: Dict[str, Any]
+    inputs: dict[str, Any]
     script: str
-    output: Dict[str, Any]
+    output: dict[str, Any]
 
 
 Block = Annotated[
@@ -127,15 +129,11 @@ Block = Annotated[
 class Phase(BaseModel):
     slug: str
     name: str
-    blocks: List[Block]
+    blocks: list[Block]
 
 
 class PhaseList(BaseModel):
-    phases: List[Phase]
-
-
-class Blueprint(BaseModel):
-    name: str
+    phases: list[Phase]
 
 
 @cache
@@ -148,7 +146,7 @@ class EventBase(SQLModel):
     description: str | None = Field(default=None, max_length=255)
     is_active: bool = True
 
-    phases: List[Dict[str, Any]] = Field(sa_column=Column(JSONB))
+    phases: list[dict[str, Any]] = Field(sa_column=Column(JSONB))
 
     is_recurring: bool = Field(default=False)
     rrule: Optional[str] = Field(default=None, max_length=255)
@@ -171,7 +169,7 @@ class Event(EventBase, table=True):
     created_at: datetime = Field(default_factory=get_datetime_utc)
     user_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE")
-    user: User | None = Relationship(back_populates="events")
+    user: User = Relationship(back_populates="events")
     entries: list["Entry"] = Relationship(
         back_populates="event", cascade_delete=True)
 
@@ -184,7 +182,7 @@ class Event(EventBase, table=True):
 
     @field_validator("phases", mode="before")
     @classmethod
-    def validate_blueprint_schema(cls, v: Any) -> List[Dict[str, Any]]:
+    def validate_phases(cls, v: Any) -> list[dict[str, Any]]:
         phase_list = PhaseList(phases=v)
         return [phase.model_dump() for phase in phase_list.phases]
 
@@ -201,8 +199,8 @@ class EventsPublic(SQLModel):
 
 
 class EntryBase(SQLModel):
-    data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB))
     due_date: datetime
+    data: dict[str, Any] = Field(sa_column=Column(JSONB))
 
 
 class EntryCreate(EntryBase):
@@ -211,17 +209,27 @@ class EntryCreate(EntryBase):
 
 class Entry(EntryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=get_datetime_utc)
     event_id: uuid.UUID = Field(
         foreign_key="event.id", nullable=False, ondelete="CASCADE", index=True)
-    user_id: uuid.UUID = Field(index=True)
-    event: Event | None = Relationship(back_populates="entries")
-
-    due_date: datetime = Field(index=True)
-    data: Dict[str, Any] = Field(sa_column=Column(JSONB))
-
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True)
+    created_at: datetime = Field(default_factory=get_datetime_utc)
     updated_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_column_kwargs={"onupdate": get_datetime_utc}
     )
+    event: Event = Relationship(back_populates="entries")
+    user: User = Relationship(back_populates="entries")
+
+
+class EntryPublic(EntryBase):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class EntriesPublic(SQLModel):
+    data: list[Entry]
+    count: int
