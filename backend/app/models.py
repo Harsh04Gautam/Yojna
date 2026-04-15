@@ -152,6 +152,7 @@ class EventBase(SQLModel):
     rrule: Optional[str] = Field(default=None, max_length=255)
 
     start_at: datetime = Field(default_factory=get_datetime_utc)
+    end_at: datetime = Field(default_factory=get_datetime_utc)
     duration_minutes: int = Field(default=30)
     timezone: str = Field(default="UTC")
 

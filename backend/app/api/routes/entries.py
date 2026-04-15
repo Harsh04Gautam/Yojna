@@ -1,14 +1,19 @@
 import uuid
+from datetime import datetime
+from dateutil.rrule import rrulestr
+from enum import Enum
+from pydantic import BaseModel
+from sqlmodel import select, and_
 from fastapi import APIRouter, HTTPException, status
 from app.api.deps import SessionDep, CurrentUser
 from app import crud
-from app.models import EntryCreate, EntriesPublic, EntryPublic
+from app.models import EntryCreate, EntriesPublic, EntryPublic, Entry
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
 
-@router.post("/{event_id}", response_model=EntryPublic)
-def create_entries(session: SessionDep, current_user: CurrentUser, entry_in: EntryCreate, event_id: uuid.UUID):
+@router.post("/{event_id}")
+def create_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID, entry_in: EntryCreate):
     event = crud.get_event(session=session, event_id=event_id)
     if not event:
         raise HTTPException(
@@ -34,3 +39,52 @@ def get_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.U
 
     entries = crud.get_entries_by_event(session=session, event_id=event_id)
     return entries
+
+
+class Status(str, Enum):
+    COMPLETED = "completed"
+    PENDING = "pending"
+
+
+class CalendarSlot(BaseModel):
+    due_date: datetime
+    status: Status
+    entry_id: int | None = None
+    event_id: uuid.UUID
+    is_virtual: bool
+
+
+def get_calendar_expansion(*, session: SessionDep, user_id: uuid.UUID, event_id: uuid.UUID, start: datetime, end: datetime):
+    event = crud.get_event(session=session, event_id=event_id)
+    if not event:
+        return []
+
+    rule = rrulestr(event.rrule, dtstart=event.start_at)
+
+    upper_bound = min(end, event.end_at) if event.end_at else end
+    expected_dates = rule.between(start, upper_bound, inc=True)
+
+    statement = select(Entry).where(and_(Entry.event_id == event_id,
+                                         Entry.user_id == user_id, Entry.due_date >= start, Entry.due_date <= end))
+    entries = session.exec(statement).all()
+
+    entry_map = {e.due_date: e.id for e in entries}
+
+    calendar = []
+    for dt in expected_dates:
+        entry_id = entry_map.get(dt)
+        calendar.append(
+            CalendarSlot(
+                due_date=dt,
+                status=Status.COMPLETED if entry_id else Status.PENDING,
+                entry_id=entry_id,
+                event_id=event_id,
+                is_virtual=entry_id is None
+            )
+        )
+    return calendar
+
+
+@router.get("/calendar", response_model=list[CalendarSlot])
+def get_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID, start_date: datetime, end_date: datetime):
+    return get_calendar_expansion(session=session, user_id=current_user.id, event_id=event_id, start=start_date, end=end_date)
