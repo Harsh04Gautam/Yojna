@@ -1,12 +1,13 @@
 from functools import cache
 import uuid
 from datetime import datetime, timezone
+from dateutil.rrule import rrulestr
 from typing import Literal, Optional, Annotated, Union, Any
 from enum import Enum
 from zoneinfo import available_timezones
 
 from sqlmodel import SQLModel, Field, Relationship, Column
-from pydantic import EmailStr, BaseModel, field_validator
+from pydantic import EmailStr, BaseModel, field_validator, ValidationInfo
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -186,6 +187,23 @@ class Event(EventBase, table=True):
     def validate_phases(cls, v: Any) -> list[dict[str, Any]]:
         phase_list = PhaseList(phases=v)
         return [phase.model_dump() for phase in phase_list.phases]
+
+    @field_validator("rrule")
+    @classmethod
+    def validate_rrule(cls, v: Optional[str], info: ValidationInfo) -> Optional[str]:
+        is_recurring = info.data.get("is_recurring", False)
+
+        if is_recurring:
+            if not v:
+                raise ValueError("rrule is required when is_recurring is True")
+            try:
+                rrulestr(v)
+            except Exception as e:
+                raise ValueError(f"Invalid RRULE string: {str(e)}")
+        else:
+            return None
+
+        return v
 
 
 class EventPublic(EventBase):

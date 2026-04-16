@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from app.core.config import settings
 from tests.utils.utils import random_lower_string
@@ -63,5 +63,16 @@ def test_get_calendar(client: TestClient, normal_user_token_headers: dict[str, s
         client.post(f"{settings.API_V1_STR}/entries/{event_id}",
                     headers=normal_user_token_headers, json=data)
 
-    r = client.get(f"{settings.API_V1_STR}/entries/calendar?start_date={datetime.now()}",
-                   headers=normal_user_token_headers, json=data)
+    start_date = (datetime.now() - timedelta(days=1)).isoformat()
+    end_date = (datetime.now() + timedelta(days=10)).isoformat()
+
+    r = client.get(f"{settings.API_V1_STR}/entries/calendar", headers=normal_user_token_headers, params={
+        "start_date": start_date,
+        "end_date": end_date,
+        "event_id": event_id
+    })
+
+    print(r.url)
+    print(r.json())
+
+    assert r.status_code == 200

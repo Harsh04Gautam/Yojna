@@ -12,35 +12,6 @@ from app.models import EntryCreate, EntriesPublic, Entry
 router = APIRouter(prefix="/entries", tags=["entries"])
 
 
-@router.post("/{event_id}")
-def create_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID, entry_in: EntryCreate):
-    event = crud.get_event(session=session, event_id=event_id)
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    if event.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
-
-    entry = crud.create_entry(
-        session=session, entry_create=entry_in, event=event, user_id=current_user.id)
-    return entry
-
-
-@router.get("/{event_id}", response_model=EntriesPublic)
-def get_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID):
-    event = crud.get_event(session=session, event_id=event_id)
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    if event.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
-
-    entries = crud.get_entries_by_event(session=session, event_id=event_id)
-    return entries
-
-
 class Status(str, Enum):
     COMPLETED = "completed"
     PENDING = "pending"
@@ -88,3 +59,32 @@ def get_calendar_expansion(*, session: SessionDep, user_id: uuid.UUID, event_id:
 @router.get("/calendar", response_model=list[CalendarSlot])
 def get_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID, start_date: datetime, end_date: datetime):
     return get_calendar_expansion(session=session, user_id=current_user.id, event_id=event_id, start=start_date, end=end_date)
+
+
+@router.post("/{event_id}")
+def create_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID, entry_in: EntryCreate):
+    event = crud.get_event(session=session, event_id=event_id)
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    if event.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
+
+    entry = crud.create_entry(
+        session=session, entry_create=entry_in, event=event, user_id=current_user.id)
+    return entry
+
+
+@router.get("/{event_id}", response_model=EntriesPublic)
+def get_entries(session: SessionDep, current_user: CurrentUser, event_id: uuid.UUID):
+    event = crud.get_event(session=session, event_id=event_id)
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    if event.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
+
+    entries = crud.get_entries_by_event(session=session, event_id=event_id)
+    return entries

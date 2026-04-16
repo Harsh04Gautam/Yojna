@@ -14,6 +14,8 @@ def create_random_event(session: Session) -> (Event, list[str]):
         "title": random_lower_string(),
         "description": random_lower_string(),
         "is_active": True,
+        "is_recurring": True,
+        "rrule": "FREQ=DAILY;INTERVAL=10;COUNT=5",
         "phases": [
             {
                 "slug": random_lower_string(),
