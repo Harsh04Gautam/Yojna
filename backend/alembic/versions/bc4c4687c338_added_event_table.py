@@ -1,8 +1,8 @@
-"""Updated relationship in entries
+"""Added event table
 
-Revision ID: 81b0c40937e3
-Revises: 
-Create Date: 2026-04-05 18:46:08.576977
+Revision ID: bc4c4687c338
+Revises: bb72307779fd
+Create Date: 2026-04-15 21:45:40.115558
 
 """
 from typing import Sequence, Union
@@ -13,8 +13,8 @@ import sqlmodel
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '81b0c40937e3'
-down_revision: Union[str, Sequence[str], None] = None
+revision: str = 'bc4c4687c338'
+down_revision: Union[str, Sequence[str], None] = 'bb72307779fd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -41,6 +41,7 @@ def upgrade() -> None:
     sa.Column('is_recurring', sa.Boolean(), nullable=False),
     sa.Column('rrule', sqlmodel.sql.sqltypes.AutoString(length=255), nullable=True),
     sa.Column('start_at', sa.DateTime(), nullable=False),
+    sa.Column('end_at', sa.DateTime(), nullable=False),
     sa.Column('duration_minutes', sa.Integer(), nullable=False),
     sa.Column('timezone', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('id', sa.Uuid(), nullable=False),

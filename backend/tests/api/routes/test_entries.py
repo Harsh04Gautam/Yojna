@@ -29,7 +29,4 @@ def test_get_entries_by_event(client: TestClient, normal_user_token_headers: dic
     r = client.get(f"{settings.API_V1_STR}/entries/{event_id}",
                    headers=normal_user_token_headers)
 
-    print(r.json())
-    # assert r.status_code == 200
-    # assert r.json()["data"]
-    # assert r.json()["count"] > 0
+    assert r.status_code == 200
