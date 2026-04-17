@@ -218,8 +218,10 @@ class EventsPublic(SQLModel):
 
 
 class EntryBase(SQLModel):
-    due_date: datetime
     data: dict[str, Any] = Field(sa_column=Column(JSONB))
+    scheduled_at: datetime
+    started_at: Optional[datetime] = Field(default=None)
+    finished_at: Optional[datetime] = Field(default=None)
 
 
 class EntryCreate(EntryBase):

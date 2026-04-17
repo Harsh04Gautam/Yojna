@@ -18,7 +18,7 @@ class Status(str, Enum):
 
 
 class CalendarSlot(BaseModel):
-    due_date: datetime
+    scheduled_at: datetime
     status: Status
     entry_id: int | None = None
     event_id: uuid.UUID
@@ -36,17 +36,17 @@ def get_calendar_expansion(*, session: SessionDep, user_id: uuid.UUID, event_id:
     expected_dates = rule.between(start, upper_bound, inc=True)
 
     statement = select(Entry).where(and_(Entry.event_id == event_id,
-                                         Entry.user_id == user_id, Entry.due_date >= start, Entry.due_date <= end))
+                                         Entry.user_id == user_id, Entry.scheduled_at >= start, Entry.scheduled_at <= end))
     entries = session.exec(statement).all()
 
-    entry_map = {e.due_date: e.id for e in entries}
+    entry_map = {e.scheduled_at: e.id for e in entries}
 
     calendar = []
     for dt in expected_dates:
         entry_id = entry_map.get(dt)
         calendar.append(
             CalendarSlot(
-                due_date=dt,
+                scheduled_at=dt,
                 status=Status.COMPLETED if entry_id else Status.PENDING,
                 entry_id=entry_id,
                 event_id=event_id,
@@ -70,6 +70,20 @@ def create_entries(session: SessionDep, current_user: CurrentUser, event_id: uui
     if event.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Event not found")
+
+    rrule = rrulestr(event.rrule, dtstart=event.start_at)
+    last_occurence = rrule.before(entry_in.due_date, inc=True)
+    print(last_occurence)
+    print(entry_in.due_date)
+    print(datetime.today())
+    print(event)
+
+    # if last_occurence != entry_in.due_date:
+    #     raise ValueError(
+    #         "Invalid due_date: Does not match event recurrence schedule.")
+    #
+    # if event.end_at and entry_in.due_date > event.end_at:
+    #     raise ValueError("Invalid due_date: Entry is past the event end date.")
 
     entry = crud.create_entry(
         session=session, entry_create=entry_in, event=event, user_id=current_user.id)

@@ -14,7 +14,7 @@ def test_create_entries(client: TestClient, normal_user_token_headers: dict[str,
             blocks[1]: 20,
             blocks[2]: True,
         },
-        "due_date": str(datetime.now())
+        "due_date": str(datetime.today())
     }
 
     r = client.post(f"{settings.API_V1_STR}/entries/{event_id}",
@@ -63,8 +63,8 @@ def test_get_calendar(client: TestClient, normal_user_token_headers: dict[str, s
         client.post(f"{settings.API_V1_STR}/entries/{event_id}",
                     headers=normal_user_token_headers, json=data)
 
-    start_date = (datetime.now() - timedelta(days=1)).isoformat()
-    end_date = (datetime.now() + timedelta(days=10)).isoformat()
+    start_date = datetime.now() - timedelta(days=10)
+    end_date = datetime.now() + timedelta(days=10)
 
     r = client.get(f"{settings.API_V1_STR}/entries/calendar", headers=normal_user_token_headers, params={
         "start_date": start_date,
