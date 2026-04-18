@@ -6,7 +6,7 @@ from typing import Literal, Optional, Annotated, Union, Any
 from enum import Enum
 from zoneinfo import available_timezones
 
-from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlmodel import SQLModel, Field, Relationship, Column, UniqueConstraint
 from pydantic import EmailStr, BaseModel, field_validator, ValidationInfo
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -241,6 +241,10 @@ class Entry(EntryBase, table=True):
     )
     event: Event = Relationship(back_populates="entries")
     user: User = Relationship(back_populates="entries")
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", "scheduled_at"),
+    )
 
 
 class EntryPublic(EntryBase):

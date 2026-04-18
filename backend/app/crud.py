@@ -1,7 +1,8 @@
 import uuid
 from sqlmodel import Session, select, func
+from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from app.models import UserCreate, User, UserUpdate, EventCreate, Event, EventsPublic, EntryCreate, Entry, EntriesPublic
 from app.core.security import get_password_hash, verify_password
 
@@ -105,12 +106,19 @@ def create_entry(*, session: Session, entry_create: EntryCreate, event: Event, u
     db_obj = Entry(
         event_id=event.id,
         user_id=user_id,
-        due_date=entry_create.due_date,
+        scheduled_at=entry_create.scheduled_at,
         data=validated_data
     )
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
+    try:
+        session.add(db_obj)
+        session.commit()
+        session.refresh(db_obj)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An entry for this scheduled slot already exists."
+        )
     return db_obj
 
 
