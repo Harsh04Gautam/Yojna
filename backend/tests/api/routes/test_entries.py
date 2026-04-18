@@ -83,38 +83,55 @@ def test_get_entries_by_event(client: TestClient, normal_user_token_headers: dic
     event, blocks = random_event()
     event_id = event.id
 
-    data = {
-        "data": {
-            blocks[0]: random_lower_string(),
-            blocks[1]: 20,
-            blocks[2]: True,
-        },
-        "scheduled_at": str(datetime.now())
-    }
+    count = 5
+    rrule = rrulestr(event.rrule)
+    occurrences = rrule.between(
+        after=event.start_at - timedelta(days=count),
+        before=event.start_at + timedelta(days=count),
+        inc=True
+    )
 
-    client.post(f"{settings.API_V1_STR}/entries/{event_id}",
-                headers=normal_user_token_headers, json=data)
-
-    r = client.get(f"{settings.API_V1_STR}/entries/{event_id}",
-                   headers=normal_user_token_headers)
-
-    assert r.status_code == 200
-    assert r.json()["data"]
-    assert r.json()["count"] > 0
-
-
-def test_get_calendar(client: TestClient, normal_user_token_headers: dict[str, str], random_event):
-    event, blocks = random_event()
-    event_id = event.id
-
-    for _ in range(5):
+    for i in range(count):
         data = {
             "data": {
                 blocks[0]: random_lower_string(),
                 blocks[1]: 20,
                 blocks[2]: True,
             },
-            "scheduled_at": str(datetime.now())
+            "scheduled_at": str(occurrences[i])
+        }
+
+        client.post(f"{settings.API_V1_STR}/entries/{event_id}",
+                    headers=normal_user_token_headers, json=data)
+
+    r = client.get(f"{settings.API_V1_STR}/entries/{event_id}",
+                   headers=normal_user_token_headers)
+
+    assert r.status_code == 200
+    assert r.json()["data"]
+    assert r.json()["count"] == count
+
+
+def test_get_calendar(client: TestClient, normal_user_token_headers: dict[str, str], random_event):
+    event, blocks = random_event()
+    event_id = event.id
+
+    count = 5
+    rrule = rrulestr(event.rrule)
+    occurrences = rrule.between(
+        after=event.start_at - timedelta(days=count),
+        before=event.start_at + timedelta(days=count),
+        inc=True
+    )
+
+    for i in range(count):
+        data = {
+            "data": {
+                blocks[0]: random_lower_string(),
+                blocks[1]: 20,
+                blocks[2]: True,
+            },
+            "scheduled_at": str(occurrences[i])
         }
 
         client.post(f"{settings.API_V1_STR}/entries/{event_id}",
@@ -128,8 +145,5 @@ def test_get_calendar(client: TestClient, normal_user_token_headers: dict[str, s
         "end_date": end_date,
         "event_id": event_id
     })
-
-    print(r.url)
-    print(r.json())
 
     assert r.status_code == 200

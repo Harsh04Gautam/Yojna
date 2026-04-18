@@ -20,7 +20,7 @@ class Status(str, Enum):
 class CalendarSlot(BaseModel):
     scheduled_at: datetime
     status: Status
-    entry_id: int | None = None
+    entry_id: uuid.UUID | None = None
     event_id: uuid.UUID
     is_virtual: bool
 
