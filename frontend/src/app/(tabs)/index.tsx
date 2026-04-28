@@ -1,27 +1,30 @@
-import { Link } from "expo-router";
-import { Text, View } from "react-native";
+import { useAuth } from "@/context/AuthContext";
+import { Link, Redirect } from "expo-router";
+import { ActivityIndicator, Text, View } from "react-native";
 
 export default function Index() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <View>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-xl font-bold text-blue-700 font-plusjakartasans">
+          Welcome to Nativewind!
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-xl font-bold text-blue-700 font-plusjakartasans">
-        Welcome to Nativewind!
-      </Text>
-      <Link href={"/onboarding"} className="mt-4 p-4 bg-slate-400">
-        Go to onboarding
-      </Link>
-      <Link href={"/(auth)/sign-in"} className="mt-4 p-4 bg-slate-400">
-        Go to Sign In
-      </Link>
-      <Link href={"/(auth)/sign-up"} className="mt-4 p-4 bg-slate-400">
-        Go to Sign Up
-      </Link>
-      <Link
-        href={"/(tabs)/subscriptions/spotify"}
-        className="mt-4 p-4 bg-slate-400"
-      >
-        Go to Subscription Spotify
-      </Link>
-    </View>
+    <Link href={"/(auth)/signin"} className="mt-4 p-4 bg-slate-400">
+      Go to Sign In
+    </Link>
   );
 }

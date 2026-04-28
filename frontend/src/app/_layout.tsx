@@ -1,3 +1,4 @@
+import { AuthProvider } from "@/context/AuthContext";
 import "@/global.css";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
@@ -20,5 +21,9 @@ export default function TabLayout() {
 
   const colorScheme = useColorScheme();
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }} />;
+    </AuthProvider>
+  );
 }
